@@ -15,6 +15,12 @@ async function initDb(){
     cgc10 NUMERIC(12,2) NOT NULL DEFAULT 0,
     updated_at DATE NOT NULL DEFAULT CURRENT_DATE
   )`);
+  const col=await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='card_prices' AND column_name='pristine_warning'`);
+  await pool.query(`ALTER TABLE card_prices ADD COLUMN IF NOT EXISTS pristine_warning BOOLEAN NOT NULL DEFAULT FALSE`);
+  if(!col.rowCount){
+    const keys=JSON.parse(fs.readFileSync(path.join(__dirname,'pristine-research.json'),'utf8'));
+    await pool.query('UPDATE card_prices SET pristine_warning=TRUE WHERE card_key=ANY($1::text[])',[keys]);
+  }
   console.log('Database ready');
 }
 function json(res,status,data){
@@ -36,10 +42,10 @@ const server=http.createServer(async(req,res)=>{
 
     if(pathname==='/api/prices' && req.method==='GET'){
       if(!pool)return json(res,200,{});
-      const r=await pool.query('SELECT card_key, psa9, cgc10, updated_at FROM card_prices');
+      const r=await pool.query("SELECT card_key, psa9, cgc10, pristine_warning, to_char(updated_at, 'YYYY-MM-DD') AS updated_at FROM card_prices");
       const out={};
       for(const row of r.rows){
-        out[row.card_key]={psa9:Number(row.psa9),cgc10:Number(row.cgc10),updated:String(row.updated_at).slice(0,10)};
+        out[row.card_key]={psa9:Number(row.psa9),cgc10:Number(row.cgc10),updated:row.updated_at,pristineWarning:row.pristine_warning};
       }
       return json(res,200,out);
     }
@@ -49,12 +55,13 @@ const server=http.createServer(async(req,res)=>{
       const b=await readBody(req);
       if(!b.card_key || typeof b.card_key!=='string')return json(res,400,{error:'card_key required'});
       const psa9=Number(b.psa9)||0,cgc10=Number(b.cgc10)||0;
+      const pristineWarning=b.pristineWarning===true;
       const r=await pool.query(
-        `INSERT INTO card_prices(card_key,psa9,cgc10,updated_at)
-         VALUES($1,$2,$3,CURRENT_DATE)
-         ON CONFLICT(card_key) DO UPDATE SET psa9=EXCLUDED.psa9,cgc10=EXCLUDED.cgc10,updated_at=CURRENT_DATE
+        `INSERT INTO card_prices(card_key,psa9,cgc10,pristine_warning,updated_at)
+         VALUES($1,$2,$3,$4,CURRENT_DATE)
+         ON CONFLICT(card_key) DO UPDATE SET psa9=EXCLUDED.psa9,cgc10=EXCLUDED.cgc10,pristine_warning=EXCLUDED.pristine_warning,updated_at=CURRENT_DATE
          RETURNING card_key,psa9,cgc10,updated_at`,
-        [b.card_key,psa9,cgc10]
+        [b.card_key,psa9,cgc10,pristineWarning]
       );
       return json(res,200,{ok:true,row:r.rows[0]});
     }
