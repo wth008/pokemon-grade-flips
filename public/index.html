@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#050505">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>Pokémon Grade Flips</title>
+<style>
+:root{--bg:#050505;--card:#111;--line:#2a2a2a;--muted:#a9a9ad;--green:#56d6a3;--yellow:#ffd75e;--red:#ff6b7a;--blue:#63a8ff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif}
+.wrap{max-width:1040px;margin:auto;padding:18px 14px 70px}
+h1{font-size:26px;margin:0 0 3px;letter-spacing:-.5px}.sub{color:var(--muted);font-size:13px;margin-bottom:18px}
+.top{position:sticky;top:0;z-index:5;background:rgba(5,5,5,.92);backdrop-filter:blur(14px);padding:10px 0 12px}
+.filters{display:grid;grid-template-columns:1fr 1fr;gap:8px}.filters select,.search{width:100%;background:#101010;color:#fff;border:1px solid #292929;border-radius:13px;padding:11px 12px;font-size:15px}
+.search{margin-top:8px}
+.section{margin-top:22px}.section h2{font-size:18px;margin:0 0 10px}
+.best-tabs{display:flex;gap:8px;margin-bottom:10px}.best-tabs button{border:1px solid #2e2e2e;background:#111;color:#ddd;border-radius:999px;padding:8px 11px;font-weight:700}.best-tabs button.on{background:#fff;color:#000}
+.bestrow{display:flex;gap:10px;overflow-x:auto;padding-bottom:3px}.mini{min-width:185px;background:#111;border:1px solid #292929;border-radius:15px;padding:12px}
+.mini .nm{font-weight:800}.mini .m{color:var(--muted);font-size:12px;margin:4px 0 9px}.mini .roi{font-size:22px;font-weight:900}
+.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+@media(min-width:760px){.grid{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.card{background:#0e0e0f;border:1px solid #28282b;border-radius:14px;overflow:hidden;cursor:pointer;min-height:250px;display:flex;flex-direction:column}
+.art{height:120px;background:radial-gradient(circle at 25% 20%,#3b82f6 0,transparent 34%),radial-gradient(circle at 75% 75%,#a855f7 0,transparent 32%),linear-gradient(135deg,#1e293b,#111827);display:flex;align-items:center;justify-content:center;font-size:44px;position:relative}
+.art .yr{position:absolute;top:8px;left:8px;font-size:11px;background:#000a;border:1px solid #ffffff24;border-radius:999px;padding:4px 7px}
+.body{padding:11px;display:flex;flex-direction:column;flex:1}.name{font-weight:850;font-size:16px;line-height:1.15}.meta{font-size:12px;color:var(--muted);margin-top:4px;line-height:1.25}.nums{margin-top:auto;padding-top:12px}
+.prices{display:flex;justify-content:space-between;gap:7px;font-size:12px;color:#bfc1c7}.prices b{color:#fff;font-size:14px}
+.result{margin-top:7px;display:flex;justify-content:space-between;align-items:end}.profit{font-size:15px;font-weight:800}.roi{font-size:19px;font-weight:900}.face{font-size:24px}.stale{font-size:10px;color:var(--yellow);margin-top:5px}
+.empty{border:1px dashed #333;border-radius:14px;padding:22px;text-align:center;color:var(--muted)}
+.modal{position:fixed;inset:0;background:#000b;z-index:20;display:none;align-items:flex-end}.modal.show{display:flex}.sheet{width:100%;max-width:560px;margin:0 auto;background:#151515;border-radius:22px 22px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom));border:1px solid #303030}
+.sheet h3{margin:0;font-size:21px}.sheet .sm{color:var(--muted);font-size:13px;margin:4px 0 16px}
+.fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}.field label{display:block;color:var(--muted);font-size:11px;font-weight:800;margin-bottom:5px;text-transform:uppercase;letter-spacing:.4px}.field input{width:100%;background:#090909;color:#fff;border:1px solid #333;border-radius:12px;padding:13px 11px;font-size:18px}
+.preview{margin-top:12px;background:#0c0c0c;border:1px solid #292929;border-radius:12px;padding:12px;display:flex;justify-content:space-between;align-items:center}.preview strong{font-size:21px}
+.actions{display:flex;gap:8px;margin-top:12px}.actions button{flex:1;border:0;border-radius:12px;padding:12px;font-weight:850;font-size:15px}.save{background:#fff;color:#000}.cancel{background:#2a2a2a;color:#fff}.ebay{background:#173a69;color:#dbeafe}
+.notice{font-size:11px;color:#999;margin-top:9px;text-align:center}
+.yearCount{color:#777;font-size:12px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <h1>Pokémon Grade Flips</h1>
+    <div class="sub">120 cards · PSA 9 → CGC 10 · $11 grading included</div>
+    <div class="filters">
+      <select id="year"></select>
+      <select id="set"></select>
+    </div>
+    <input id="search" class="search" placeholder="Search card or #">
+  </div>
+
+  <div class="section">
+    <h2>Best opportunities</h2>
+    <div class="best-tabs"><button id="tabROI" class="on">Best ROI</button><button id="tabProfit">Best $ profit</button></div>
+    <div id="best" class="bestrow"></div>
+  </div>
+
+  <div class="section">
+    <h2 id="heading">Cards</h2>
+    <div id="grid" class="grid"></div>
+  </div>
+</div>
+
+<div id="modal" class="modal">
+  <div class="sheet">
+    <h3 id="mName"></h3>
+    <div id="mMeta" class="sm"></div>
+    <div class="fields">
+      <div class="field"><label>PSA 9 avg</label><input id="psa9" inputmode="decimal" placeholder="0.00"></div>
+      <div class="field"><label>CGC 10 avg</label><input id="cgc10" inputmode="decimal" placeholder="0.00"></div>
+    </div>
+    <div class="preview"><span id="pFace" style="font-size:32px">😐</span><div style="text-align:right"><div id="pProfit">Profit —</div><strong id="pROI">ROI —</strong></div></div>
+    <div class="actions">
+      <button id="ebayPSA" class="ebay">eBay PSA 9</button>
+      <button id="ebayCGC" class="ebay">eBay CGC 10</button>
+    </div>
+    <div class="actions"><button id="cancel" class="cancel">Cancel</button><button id="save" class="save">Save prices</button></div>
+    <div class="notice">Saving marks the card checked today. Recheck warning appears after 30 days.</div>
+  </div>
+</div>
+
+<script>
+const CARD_DATA=[["2023","Crown Zenith","Giratina VSTAR","GG69/GG70"],["2023","Scarlet & Violet Base","Drowzee","210/198"],["2023","Scarlet & Violet Base","Gardevoir ex","245/198"],["2023","Scarlet & Violet Base","Ralts","211/198"],["2023","Scarlet & Violet Base","Kirlia","212/198"],["2023","Scarlet & Violet Base","Slowpoke","204/198"],["2023","Scarlet & Violet Base","Riolu","215/198"],["2023","Scarlet & Violet Base","Fidough","213/198"],["2023","Paldea Evolved","Magikarp","203/193"],["2023","Paldea Evolved","Raichu","211/193"],["2023","Paldea Evolved","Tyranitar","222/193"],["2023","Paldea Evolved","Iono","269/193"],["2023","Paldea Evolved","Marill","204/193"],["2023","Obsidian Flames","Charizard ex SIR","223/197"],["2023","Obsidian Flames","Ninetales","199/197"],["2023","Obsidian Flames","Cleffa","202/197"],["2023","Obsidian Flames","Gloom","198/197"],["2023","151","Charizard ex","199/165"],["2023","151","Blastoise ex","200/165"],["2023","151","Venusaur ex","198/165"],["2023","151","Zapdos ex","202/165"],["2023","151","Charmander","168/165"],["2023","151","Squirtle","170/165"],["2023","151","Pikachu","173/165"],["2023","Paradox Rift","Groudon","199/182"],["2023","Paradox Rift","Morpeko","206/182"],["2023","Promo","Charmander Pokémon Center","SVP044"],["2023","Promo","Snorlax Pokémon Center","SVP051"],["2023","Promo","Pikachu Pokémon Center","SVP027"],["2023","Promo","Pikachu with Grey Felt Hat","SVP085"],["2024","Paldean Fates","Mew ex","232/091"],["2024","Paldean Fates","Charizard ex","234/091"],["2024","Paldean Fates","Gardevoir ex","233/091"],["2024","Paldean Fates","Pikachu","131/091"],["2024","Paldean Fates","Snorlax","202/091"],["2024","Paldean Fates","Mimikyu","160/091"],["2024","Temporal Forces","Gastly","177/162"],["2024","Temporal Forces","Raging Bolt ex","208/162"],["2024","Temporal Forces","Gengar ex","193/162"],["2024","Temporal Forces","Sawsbuck","166/162"],["2024","Twilight Masquerade","Greninja ex","214/167"],["2024","Twilight Masquerade","Perrin","220/167"],["2024","Twilight Masquerade","Eevee","188/167"],["2024","Twilight Masquerade","Chansey","187/167"],["2024","Twilight Masquerade","Carmine","217/167"],["2024","Shrouded Fable","Persian","078/064"],["2024","Shrouded Fable","Houndoom","066/064"],["2024","Shrouded Fable","Duskull","068/064"],["2024","Shrouded Fable","Horsea","067/064"],["2024","Stellar Crown","Squirtle","148/142"],["2024","Stellar Crown","Bulbasaur","143/142"],["2024","Stellar Crown","Terapagos ex","170/142"],["2024","Stellar Crown","Dachsbun ex","169/142"],["2024","Surging Sparks","Pikachu ex SIR","238/191"],["2024","Surging Sparks","Latias ex","239/191"],["2024","Surging Sparks","Milotic ex","237/191"],["2024","Surging Sparks","Latios","203/191"],["2024","Surging Sparks","Ceruledge","197/191"],["2024","Promo","Mimikyu Pokémon Center","SVP075"],["2024","Promo","Magneton Pokémon Center","SVP159"],["2025","Prismatic Evolutions","Leafeon ex","144/131"],["2025","Prismatic Evolutions","Flareon ex","146/131"],["2025","Prismatic Evolutions","Vaporeon ex","149/131"],["2025","Prismatic Evolutions","Glaceon ex","150/131"],["2025","Prismatic Evolutions","Jolteon ex","153/131"],["2025","Prismatic Evolutions","Espeon ex","155/131"],["2025","Prismatic Evolutions","Sylveon ex","156/131"],["2025","Prismatic Evolutions","Eevee ex","167/131"],["2025","Journey Together","Lillie's Clefairy ex","184/159"],["2025","Journey Together","Salamence ex","187/159"],["2025","Journey Together","N's Zoroark ex","185/159"],["2025","Journey Together","Iono's Bellibolt ex","183/159"],["2025","Journey Together","N's Reshiram","167/159"],["2025","Destined Rivals","Team Rocket's Mewtwo ex","231/182"],["2025","Destined Rivals","Cynthia's Garchomp ex","232/182"],["2025","Destined Rivals","Ethan's Ho-Oh ex","230/182"],["2025","Destined Rivals","Team Rocket's Moltres ex","229/182"],["2025","Destined Rivals","Misty's Psyduck","193/182"],["2025","Destined Rivals","Team Rocket's Nidoking ex","233/182"],["2025","Black Bolt","Zekrom ex","166/086"],["2025","Black Bolt","Seismitoad","105/086"],["2025","Black Bolt","Kyurem ex","165/086"],["2025","Black Bolt","Haxorus","147/086"],["2025","Black Bolt","Krookodile","137/086"],["2025","White Flare","Reshiram ex","166/086"],["2025","White Flare","Oshawott","105/086"],["2025","White Flare","Zoroark","143/086"],["2025","White Flare","Chandelure","103/086"],["2025","White Flare","Zorua","142/086"],["2025","White Flare","Tepig","096/086"],["2025","Mega Evolution","Mega Latias ex","181/132"],["2025","Phantasmal Flames","Mega Charizard X ex","130/094"],["2025","Phantasmal Flames","Meowth","106/094"],["2025","Promo","Eevee Pokémon Center","SVP173"],["2025","Promo","N's Zorua Pokémon Center","SVP189"],["2026","Ascended Heroes","Mega Charizard Y ex","294/217"],["2026","Ascended Heroes","Pikachu ex","277/217"],["2026","Ascended Heroes","Team Rocket's Mewtwo ex","281/217"],["2026","Ascended Heroes","Mega Dragonite ex","295/217"],["2026","Ascended Heroes","N's Zoroark ex","286/217"],["2026","Ascended Heroes","Lillie's Clefairy ex","280/217"],["2026","Ascended Heroes","Mega Feraligatr ex","274/217"],["2026","Ascended Heroes","Psyduck","226/217"],["2026","Ascended Heroes","Mega Meganium ex","272/217"],["2026","Perfect Order","Mega Zygarde ex MHR","124/088"],["2026","Perfect Order","Meowth ex","121/088"],["2026","Perfect Order","Mega Zygarde ex SIR","120/088"],["2026","Perfect Order","Mega Clefable ex","119/088"],["2026","Chaos Rising","Mega Greninja ex SIR","116/086"],["2026","Chaos Rising","Mega Greninja ex MHR","122/086"],["2026","Chaos Rising","Cinccino ex","119/086"],["2026","Chaos Rising","Ampharos","090/086"],["2026","Pitch Black","Mega Darkrai ex","116/084"],["2026","Pitch Black","Mega Darkrai ex MHR","120/084"],["2026","Pitch Black","Morpeko ex","117/084"],["2026","Pitch Black","Mega Zeraora ex","114/084"],["2026","30th Celebration","Mew ex","152/128"],["2026","30th Celebration","Gengar ex","154/128"],["2026","30th Celebration","Pikachu ex","150/128"],["2026","30th Celebration","Mewtwo ex","151/128"]];
+const FEE=11;
+const state=JSON.parse(localStorage.getItem('pokemon-grade-flips-prices')||'{}');
+let selected=null,bestMode='roi';
+
+function idOf(c){return [c[0],c[1],c[2],c[3]].join('|')}
+function money(n){return '$'+Number(n||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
+function calc(c){const s=state[idOf(c)]||{};const buy=+s.psa9||0,sale=+s.cgc10||0;const cost=buy?buy+FEE:0;const profit=(buy&&sale)?sale-cost:0;const roi=(buy&&sale)?profit/cost*100:0;return {buy,sale,profit,roi,updated:s.updated||''}}
+function mood(roi){if(roi>=150)return ['🤩','High'];if(roi>=75)return ['🙂','Good'];if(roi>=25)return ['😐','Normal'];return ['😞','Low']}
+function isStale(date){if(!date)return false;return (Date.now()-new Date(date+'T12:00:00'))/86400000>=30}
+function esc(x){return String(x).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m]))}
+
+const yearSel=document.getElementById('year'),setSel=document.getElementById('set'),search=document.getElementById('search');
+yearSel.innerHTML='<option value="">All years · 120</option>'+['2023','2024','2025','2026'].map(y=>'<option value="'+y+'">'+y+' · '+CARD_DATA.filter(c=>c[0]===y).length+' cards</option>').join('');
+
+function updateSets(){
+ const y=yearSel.value;
+ const sets=[...new Set(CARD_DATA.filter(c=>!y||c[0]===y).map(c=>c[1]))];
+ setSel.innerHTML='<option value="">All sets</option>'+sets.map(s=>'<option>'+esc(s)+'</option>').join('');
+ render();
+}
+function filtered(){
+ const y=yearSel.value,s=setSel.value,q=search.value.trim().toLowerCase();
+ return CARD_DATA.filter(c=>(!y||c[0]===y)&&(!s||c[1]===s)&&(!q||((c[2]+' '+c[3]+' '+c[1]).toLowerCase().includes(q))));
+}
+function cardHTML(c){
+ const x=calc(c),[face,label]=mood(x.roi);
+ return '<div class="card" data-id="'+esc(idOf(c))+'"><div class="art"><span class="yr">'+c[0]+'</span>🎴</div><div class="body"><div class="name">'+esc(c[2])+'</div><div class="meta">'+esc(c[1])+' · '+esc(c[3])+'</div><div class="nums"><div class="prices"><span>PSA 9<br><b>'+(x.buy?money(x.buy):'—')+'</b></span><span style="text-align:right">CGC 10<br><b>'+(x.sale?money(x.sale):'—')+'</b></span></div><div class="result"><div><div class="profit">'+(x.buy&&x.sale?(x.profit>=0?'+':'')+money(x.profit):'Add prices')+'</div>'+(isStale(x.updated)?'<div class="stale">⚠️ Recheck prices</div>':'')+'</div><div style="text-align:right"><div class="face">'+(x.buy&&x.sale?face:'✏️')+'</div><div class="roi">'+(x.buy&&x.sale?Math.round(x.roi)+'%':'')+'</div></div></div></div></div></div>';
+}
+function render(){
+ const arr=filtered();
+ document.getElementById('heading').innerHTML=(yearSel.value||'All')+' cards <span class="yearCount">· '+arr.length+'</span>';
+ document.getElementById('grid').innerHTML=arr.length?arr.map(cardHTML).join(''):'<div class="empty">No cards found.</div>';
+ document.querySelectorAll('.card').forEach(el=>el.onclick=()=>openCard(CARD_DATA.find(c=>idOf(c)===el.dataset.id)));
+ renderBest();
+}
+function renderBest(){
+ let arr=CARD_DATA.map(c=>({c,x:calc(c)})).filter(o=>o.x.buy&&o.x.sale);
+ arr.sort((a,b)=>bestMode==='roi'?b.x.roi-a.x.roi:b.x.profit-a.x.profit);
+ const best=document.getElementById('best');
+ if(!arr.length){best.innerHTML='<div class="empty" style="min-width:100%">Add a few prices and your best flips will appear here automatically.</div>';return}
+ best.innerHTML=arr.slice(0,8).map(({c,x})=>{const [f]=mood(x.roi);return '<div class="mini" data-id="'+esc(idOf(c))+'"><div class="nm">'+f+' '+esc(c[2])+'</div><div class="m">'+esc(c[3])+' · '+esc(c[1])+'</div><div class="roi">'+Math.round(x.roi)+'% ROI</div><div style="margin-top:3px;font-weight:800;color:#56d6a3">+'+money(x.profit)+'</div></div>'}).join('');
+ document.querySelectorAll('.mini').forEach(el=>el.onclick=()=>openCard(CARD_DATA.find(c=>idOf(c)===el.dataset.id)));
+}
+function openCard(c){
+ selected=c;const x=calc(c);
+ document.getElementById('mName').textContent=c[2]+' · '+c[3];
+ document.getElementById('mMeta').textContent=c[0]+' · '+c[1];
+ document.getElementById('psa9').value=x.buy||'';
+ document.getElementById('cgc10').value=x.sale||'';
+ updatePreview();
+ const qBase=encodeURIComponent(c[2]+' '+c[3]+' Pokemon');
+ document.getElementById('ebayPSA').onclick=()=>window.open('https://www.ebay.com/sch/i.html?_nkw='+qBase+'%20PSA%209','_blank');
+ document.getElementById('ebayCGC').onclick=()=>window.open('https://www.ebay.com/sch/i.html?_nkw='+qBase+'%20CGC%2010','_blank');
+ document.getElementById('modal').classList.add('show');
+}
+function updatePreview(){
+ const buy=parseFloat(document.getElementById('psa9').value)||0,sale=parseFloat(document.getElementById('cgc10').value)||0;
+ if(!buy||!sale){document.getElementById('pProfit').textContent='Profit —';document.getElementById('pROI').textContent='ROI —';document.getElementById('pFace').textContent='😐';return}
+ const cost=buy+FEE,profit=sale-cost,roi=profit/cost*100,[f,label]=mood(roi);
+ document.getElementById('pFace').textContent=f;
+ document.getElementById('pProfit').textContent='Profit '+(profit>=0?'+':'')+money(profit);
+ document.getElementById('pROI').textContent=Math.round(roi)+'% · '+label;
+}
+document.getElementById('psa9').oninput=updatePreview;document.getElementById('cgc10').oninput=updatePreview;
+document.getElementById('cancel').onclick=()=>document.getElementById('modal').classList.remove('show');
+document.getElementById('modal').onclick=e=>{if(e.target.id==='modal')document.getElementById('modal').classList.remove('show')};
+document.getElementById('save').onclick=()=>{
+ if(!selected)return;const psa9=parseFloat(document.getElementById('psa9').value)||0,cgc10=parseFloat(document.getElementById('cgc10').value)||0;
+ state[idOf(selected)]={psa9,cgc10,updated:new Date().toISOString().slice(0,10)};
+ localStorage.setItem('pokemon-grade-flips-prices',JSON.stringify(state));
+ document.getElementById('modal').classList.remove('show');render();
+};
+yearSel.onchange=updateSets;setSel.onchange=render;search.oninput=render;
+document.getElementById('tabROI').onclick=()=>{bestMode='roi';document.getElementById('tabROI').classList.add('on');document.getElementById('tabProfit').classList.remove('on');renderBest()};
+document.getElementById('tabProfit').onclick=()=>{bestMode='profit';document.getElementById('tabProfit').classList.add('on');document.getElementById('tabROI').classList.remove('on');renderBest()};
+updateSets();
+</script>
+</body></html>
