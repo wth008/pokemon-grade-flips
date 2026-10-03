@@ -15,11 +15,13 @@ async function initDb(){
     cgc10 NUMERIC(12,2) NOT NULL DEFAULT 0,
     updated_at DATE NOT NULL DEFAULT CURRENT_DATE
   )`);
-  const col=await pool.query(`SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='card_prices' AND column_name='pristine_warning'`);
-  await pool.query(`ALTER TABLE card_prices ADD COLUMN IF NOT EXISTS pristine_warning BOOLEAN NOT NULL DEFAULT FALSE`);
+  const col=await pool.query("SELECT 1 FROM information_schema.columns WHERE table_schema=current_schema() AND table_name='card_prices' AND column_name='research_status'");
+  await pool.query("ALTER TABLE card_prices ADD COLUMN IF NOT EXISTS pristine_warning BOOLEAN NOT NULL DEFAULT FALSE, ADD COLUMN IF NOT EXISTS research_status TEXT NOT NULL DEFAULT 'not_checked', ADD COLUMN IF NOT EXISTS research_note TEXT NOT NULL DEFAULT '', ADD COLUMN IF NOT EXISTS price_period TEXT NOT NULL DEFAULT ''");
   if(!col.rowCount){
-    const keys=JSON.parse(fs.readFileSync(path.join(__dirname,'pristine-research.json'),'utf8'));
-    await pool.query('UPDATE card_prices SET pristine_warning=TRUE WHERE card_key=ANY($1::text[])',[keys]);
+    const research=JSON.parse(fs.readFileSync(path.join(__dirname,'research.json'),'utf8'));
+    for(const [key,r] of Object.entries(research)){
+      await pool.query('UPDATE card_prices SET pristine_warning=$2, research_status=$3, research_note=$4, price_period=$5 WHERE card_key=$1',[key,r.pristineWarning,r.status,r.note,r.period]);
+    }
   }
   console.log('Database ready');
 }
@@ -42,10 +44,10 @@ const server=http.createServer(async(req,res)=>{
 
     if(pathname==='/api/prices' && req.method==='GET'){
       if(!pool)return json(res,200,{});
-      const r=await pool.query("SELECT card_key, psa9, cgc10, pristine_warning, to_char(updated_at, 'YYYY-MM-DD') AS updated_at FROM card_prices");
+      const r=await pool.query("SELECT card_key, psa9, cgc10, pristine_warning, research_status, research_note, price_period, to_char(updated_at, 'YYYY-MM-DD') AS updated_at FROM card_prices");
       const out={};
       for(const row of r.rows){
-        out[row.card_key]={psa9:Number(row.psa9),cgc10:Number(row.cgc10),updated:row.updated_at,pristineWarning:row.pristine_warning};
+        out[row.card_key]={psa9:Number(row.psa9),cgc10:Number(row.cgc10),updated:row.updated_at,pristineWarning:row.pristine_warning,researchStatus:row.research_status,researchNote:row.research_note,pricePeriod:row.price_period};
       }
       return json(res,200,out);
     }
@@ -55,13 +57,19 @@ const server=http.createServer(async(req,res)=>{
       const b=await readBody(req);
       if(!b.card_key || typeof b.card_key!=='string')return json(res,400,{error:'card_key required'});
       const psa9=Number(b.psa9)||0,cgc10=Number(b.cgc10)||0;
-      const pristineWarning=b.pristineWarning===true;
+      if(!Number.isFinite(psa9)||!Number.isFinite(cgc10)||psa9<0||cgc10<0)return json(res,400,{error:'Invalid prices'});
+      const pristineWarning=typeof b.pristineWarning==='boolean'?b.pristineWarning:null;
+      const researchStatus=psa9&&cgc10?'complete':['not_checked','insufficient'].includes(b.researchStatus)?b.researchStatus:'insufficient';
+      const researchNote=typeof b.researchNote==='string'?b.researchNote.slice(0,1000):null;
+      const pricePeriod=typeof b.pricePeriod==='string'?b.pricePeriod.slice(0,100):null;
       const r=await pool.query(
-        `INSERT INTO card_prices(card_key,psa9,cgc10,pristine_warning,updated_at)
-         VALUES($1,$2,$3,$4,CURRENT_DATE)
-         ON CONFLICT(card_key) DO UPDATE SET psa9=EXCLUDED.psa9,cgc10=EXCLUDED.cgc10,pristine_warning=EXCLUDED.pristine_warning,updated_at=CURRENT_DATE
+        `INSERT INTO card_prices(card_key,psa9,cgc10,pristine_warning,research_status,research_note,price_period,updated_at)
+         VALUES($1,$2,$3,COALESCE($4,FALSE),$5,COALESCE($6,''),COALESCE($7,''),CURRENT_DATE)
+         ON CONFLICT(card_key) DO UPDATE SET psa9=EXCLUDED.psa9,cgc10=EXCLUDED.cgc10,
+         pristine_warning=COALESCE($4,card_prices.pristine_warning),research_status=EXCLUDED.research_status,
+         research_note=COALESCE($6,card_prices.research_note),price_period=COALESCE($7,card_prices.price_period),updated_at=CURRENT_DATE
          RETURNING card_key,psa9,cgc10,updated_at`,
-        [b.card_key,psa9,cgc10,pristineWarning]
+        [b.card_key,psa9,cgc10,pristineWarning,researchStatus,researchNote,pricePeriod]
       );
       return json(res,200,{ok:true,row:r.rows[0]});
     }
