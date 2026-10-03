@@ -23,6 +23,15 @@ async function initDb(){
       await pool.query('UPDATE card_prices SET pristine_warning=$2, research_status=$3, research_note=$4, price_period=$5 WHERE card_key=$1',[key,r.pristineWarning,r.status,r.note,r.period]);
     }
   }
+  await pool.query(`CREATE TABLE IF NOT EXISTS sports_card_prices (
+    card_key TEXT PRIMARY KEY,
+    raw NUMERIC(12,2) NOT NULL DEFAULT 0,
+    cgc9 NUMERIC(12,2) NOT NULL DEFAULT 0,
+    cgc10 NUMERIC(12,2) NOT NULL DEFAULT 0,
+    warning BOOLEAN NOT NULL DEFAULT FALSE,
+    note TEXT NOT NULL DEFAULT '',
+    updated_at DATE NOT NULL DEFAULT CURRENT_DATE
+  )`);
   console.log('Database ready');
 }
 function json(res,status,data){
@@ -42,6 +51,28 @@ const server=http.createServer(async(req,res)=>{
   try{
     const pathname=req.url.split('?')[0];
 
+    if(pathname==='/api/sports-prices' && req.method==='GET'){
+      if(!pool)return json(res,200,{});
+      const r=await pool.query("SELECT card_key,raw,cgc9,cgc10,warning,note,to_char(updated_at,'YYYY-MM-DD') AS updated FROM sports_card_prices");
+      const out={};
+      for(const row of r.rows)out[row.card_key]={raw:Number(row.raw),cgc9:Number(row.cgc9),cgc10:Number(row.cgc10),warning:row.warning,note:row.note,updated:row.updated};
+      return json(res,200,out);
+    }
+    if(pathname==='/api/sports-prices' && req.method==='POST'){
+      if(!pool)return json(res,503,{error:'Database unavailable'});
+      const b=await readBody(req);
+      if(typeof b.card_key!=='string'||!b.card_key.startsWith('sports|')||b.card_key.length>300)return json(res,400,{error:'Sports card key required'});
+      const prices=['raw','cgc9','cgc10'].map(f=>Number(b[f]??0));
+      if(prices.some(v=>!Number.isFinite(v)||v<0||v>=1e10))return json(res,400,{error:'Invalid prices'});
+      const note=typeof b.note==='string'?b.note.slice(0,1000):'';
+      const r=await pool.query(`INSERT INTO sports_card_prices(card_key,raw,cgc9,cgc10,warning,note,updated_at)
+        VALUES($1,$2,$3,$4,$5,$6,CURRENT_DATE)
+        ON CONFLICT(card_key) DO UPDATE SET raw=EXCLUDED.raw,cgc9=EXCLUDED.cgc9,cgc10=EXCLUDED.cgc10,warning=EXCLUDED.warning,note=EXCLUDED.note,updated_at=CURRENT_DATE
+        RETURNING raw,cgc9,cgc10,warning,note,to_char(updated_at,'YYYY-MM-DD') AS updated`,
+        [b.card_key,...prices,b.warning===true,note]);
+      const row=r.rows[0];
+      return json(res,200,{ok:true,price:{...row,raw:Number(row.raw),cgc9:Number(row.cgc9),cgc10:Number(row.cgc10)}});
+    }
     if(pathname==='/api/prices' && req.method==='GET'){
       if(!pool)return json(res,200,{});
       const r=await pool.query("SELECT card_key, psa9, cgc10, pristine_warning, research_status, research_note, price_period, to_char(updated_at, 'YYYY-MM-DD') AS updated_at FROM card_prices");
@@ -81,7 +112,9 @@ const server=http.createServer(async(req,res)=>{
     }
 
     let p=pathname;
-    if(p==='/'||!path.extname(p)) p='/index.html';
+    const routes={'/':'/index.html','/sports':'/sports.html','/pokemon':'/pokemon.html','/one-piece':'/empty.html','/other':'/empty.html'};
+    p=routes[p.replace(/\/$/,'')||'/']||p;
+    if(!path.extname(p)){res.writeHead(404);return res.end('Not found');}
     const file=path.join(root,p);
     if(!file.startsWith(root)){res.writeHead(403);return res.end('Forbidden');}
     fs.readFile(file,(err,data)=>{
