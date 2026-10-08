@@ -6,6 +6,7 @@ const {Pool}=require('pg');
 const root=path.join(__dirname,'public');
 const mime={'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css; charset=utf-8','.json':'application/json; charset=utf-8','.png':'image/png','.jpg':'image/jpeg','.jpeg':'image/jpeg','.svg':'image/svg+xml'};
 const pool=process.env.DATABASE_URL?new Pool({connectionString:process.env.DATABASE_URL}):null;
+const researchPlugin=require('./research-plugin').createPlugin(pool);
 
 async function initDb(){
   if(!pool)return;
@@ -50,6 +51,7 @@ function readBody(req){
 const server=http.createServer(async(req,res)=>{
   try{
     const pathname=req.url.split('?')[0];
+    if(await researchPlugin.route(req,res))return;
 
     if(pathname==='/api/sports-prices' && req.method==='GET'){
       if(!pool)return json(res,200,{});
@@ -112,7 +114,7 @@ const server=http.createServer(async(req,res)=>{
     }
 
     let p=pathname;
-    const routes={'/':'/index.html','/sports':'/sports.html','/pokemon':'/pokemon.html','/one-piece':'/empty.html','/other':'/empty.html'};
+    const routes={'/':'/index.html','/sports':'/sports.html','/pokemon':'/pokemon.html','/research':'/research.html','/one-piece':'/empty.html','/other':'/empty.html'};
     p=routes[p.replace(/\/$/,'')||'/']||p;
     if(!path.extname(p)){res.writeHead(404);return res.end('Not found');}
     const file=path.join(root,p);
@@ -129,6 +131,6 @@ const server=http.createServer(async(req,res)=>{
 });
 
 const port=process.env.PORT||3000;
-initDb().catch(e=>console.error('DB init failed',e)).finally(()=>{
+initDb().then(()=>researchPlugin.init()).catch(e=>console.error('DB init failed',e)).finally(()=>{
   server.listen(port,'0.0.0.0',()=>console.log('GradeFlip running on',port));
 });

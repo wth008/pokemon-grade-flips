@@ -1,0 +1,1 @@
+{"$schema":"https://agent-plugins.org/schemas/1.0.0/plugin.schema.json","name":"gradeflip-research","version":"1.0.0","description":"Save and retrieve exact-card research in your private GradeFlip dashboard. Research uses tools available in the conversation; this plugin is not a market-data provider."}
